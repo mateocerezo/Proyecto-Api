@@ -31,19 +31,19 @@ export const obtenerEmpresaPorId = async (req, res) => {
 
 export const crearEmpresa = async (req, res) => {
   try {
-    const { nombre, cuit, email, telefono, direccion } = req.body ?? {};
+    const { nombre, cuit, email, telefono } = req.body ?? {};
 
-    if (!nombre || !cuit) {
+    if (!nombre || !cuit || !email) {
       return res
         .status(400)
-        .json({ mensaje: "Los campos nombre y cuit son obligatorios" });
+        .json({ mensaje: "Los campos nombre, cuit y email son obligatorios" });
     }
 
     const resultado = await pool.query(
-      `INSERT INTO empresas (nombre, cuit, email, telefono, direccion)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO empresas (nombre, cuit, email, telefono)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [nombre, cuit, email, telefono, direccion]
+      [nombre, cuit, email, telefono]
     );
 
     res.status(201).json(resultado.rows[0]);
@@ -52,7 +52,7 @@ export const crearEmpresa = async (req, res) => {
     if (error.code === "23505") {
       return res
         .status(400)
-        .json({ mensaje: "Ya existe una empresa con ese CUIT" });
+        .json({ mensaje: "Ya existe una empresa con ese nombre o CUIT" });
     }
     res.status(500).json({ mensaje: "Error al crear la empresa" });
   }
@@ -61,7 +61,7 @@ export const crearEmpresa = async (req, res) => {
 export const editarEmpresa = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, cuit, email, telefono, direccion, activo } = req.body ?? {};
+    const { nombre, cuit, email, telefono, activa } = req.body ?? {};
 
     const resultado = await pool.query(
       `UPDATE empresas
@@ -69,11 +69,10 @@ export const editarEmpresa = async (req, res) => {
            cuit = COALESCE($2, cuit),
            email = COALESCE($3, email),
            telefono = COALESCE($4, telefono),
-           direccion = COALESCE($5, direccion),
-           activo = COALESCE($6, activo)
-       WHERE id_empresa = $7
+           activa = COALESCE($5, activa)
+       WHERE id_empresa = $6
        RETURNING *`,
-      [nombre, cuit, email, telefono, direccion, activo, id]
+      [nombre, cuit, email, telefono, activa, id]
     );
 
     if (resultado.rows.length === 0) {
@@ -86,7 +85,7 @@ export const editarEmpresa = async (req, res) => {
     if (error.code === "23505") {
       return res
         .status(400)
-        .json({ mensaje: "Ya existe una empresa con ese CUIT" });
+        .json({ mensaje: "Ya existe una empresa con ese nombre o CUIT" });
     }
     res.status(500).json({ mensaje: "Error al editar la empresa" });
   }

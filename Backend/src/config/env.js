@@ -17,5 +17,7 @@ if (jwtSecret.length < 32) {
 export const env = {
   port: Number(process.env.PORT) || 3000,
   jwtSecret,
+  // Empresa a la que llegan las consultas del sitio público (sin login).
+  idEmpresaConsultas: Number.parseInt(process.env.ID_EMPRESA_CONSULTAS, 10) || null,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h"
 };

@@ -141,8 +141,10 @@ function App() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) {
       nextErrors.email = 'Ingresá un email válido.'
     }
-    if (!/^\+54\s*9?\s*11\s*\d{4}\s*\d{4}$/.test(contact.phone.trim())) {
-      nextErrors.phone = 'Usá un WhatsApp de Buenos Aires, por ejemplo +54 9 11 0000 0000.'
+    const phone = contact.phone.trim()
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (!/^\+?[\d\s().-]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15) {
+      nextErrors.phone = 'Ingresá un número de WhatsApp válido con código de país, por ejemplo +54 9 11 0000 0000.'
     }
     return nextErrors
   }

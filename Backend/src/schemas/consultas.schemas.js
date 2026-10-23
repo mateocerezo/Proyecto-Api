@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { entero, objetoEstricto, textoRequerido } from "../utils/validaciones.js";
+import { entero, idParamSchema, objetoEstricto, textoRequerido } from "../utils/validaciones.js";
 
-// Consulta pública del sitio (sin login). La empresa NO viene en el body:
-// sale de la configuración del servidor (ID_EMPRESA_CONSULTAS).
+// Consulta pública del sitio (sin login). id_empresa es la empresa (activa)
+// que elige el cliente; si no viene, se usa ID_EMPRESA_CONSULTAS del servidor.
 // El cliente envía nombres de catálogo, nunca precios: el total lo calcula el servidor.
 
 const fechaValida = (valor) => {
@@ -33,6 +33,7 @@ const contacto = objetoEstricto({
 });
 
 export const crearConsultaSchema = objetoEstricto({
+  id_empresa: idParamSchema.shape.id.optional(),
   experiencia: textoRequerido("La experiencia", 80),
   fecha: z
     .string({ error: "La fecha debe ser un texto" })

@@ -30,6 +30,7 @@ export const manejarErrores = (err, req, res, next) => {
   if (err instanceof AppError) {
     return res.status(err.status).json({
       mensaje: err.message,
+      ...(err.codigo && { codigo: err.codigo }),
       ...(err.detalles && { detalles: err.detalles })
     });
   }

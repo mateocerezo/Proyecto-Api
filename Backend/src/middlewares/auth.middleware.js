@@ -1,43 +1,48 @@
-import jwt from "jsonwebtoken";
+import { getAuth } from "@clerk/express";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
 
+// Clerk se encarga de la identidad (login, contraseña, MFA). Estos middlewares
+// solo leen el resultado de clerkMiddleware (registrado en app.js); qué empresa
+// y qué rol tiene cada persona lo decide nuestra base (resolverEmpresa).
+
+export const ROL_SUPERADMIN = "superadmin";
+
+// userId de Clerk de la sesión, o error 401 si no hay sesión válida.
+const usuarioDeClerk = (req) => {
+  const { isAuthenticated, userId } = getAuth(req);
+  if (!isAuthenticated || !userId) {
+    throw AppError.unauthorized("Sesión requerida");
+  }
+  return userId;
+};
+
 /**
- * Autenticación: exige "Authorization: Bearer <token>" y verifica el JWT.
- * Deja en req.usuario = { id_usuario, id_empresa, rol }.
- *
- * Solo valida la firma; que el usuario/empresa sigan activos lo comprueba
- * el middleware multi-tenant (resolverEmpresa), que va a continuación.
+ * Exige una sesión válida de Clerk y deja req.clerkUserId.
+ * Para rutas de empresa va seguido de resolverEmpresa.
  */
 export const autenticar = (req, res, next) => {
-  const [esquema, token] = (req.headers.authorization ?? "").split(" ");
+  req.clerkUserId = usuarioDeClerk(req);
+  next();
+};
 
-  if (esquema !== "Bearer" || !token) {
-    throw AppError.unauthorized("Token de acceso requerido");
+/**
+ * Solo el SuperAdmin global (SUPERADMIN_CLERK_USER_ID). Sus rutas no pasan
+ * por resolverEmpresa: no pertenece a ningún tenant.
+ */
+export const autenticarSuperAdmin = (req, res, next) => {
+  const userId = usuarioDeClerk(req);
+  if (userId !== env.superAdminClerkId) {
+    throw AppError.forbidden();
   }
-
-  let payload;
-  try {
-    // Fijar el algoritmo evita ataques de "alg confusion".
-    payload = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] });
-  } catch (error) {
-    throw AppError.unauthorized(
-      error.name === "TokenExpiredError" ? "La sesión expiró, inicie sesión nuevamente" : "Token inválido"
-    );
-  }
-
-  const idUsuario = Number(payload.sub);
-  if (!Number.isInteger(idUsuario) || !Number.isInteger(payload.id_empresa)) {
-    throw AppError.unauthorized("Token inválido");
-  }
-
-  req.usuario = { id_usuario: idUsuario, id_empresa: payload.id_empresa, rol: payload.rol };
+  req.clerkUserId = userId;
+  req.usuario = { rol: ROL_SUPERADMIN };
   next();
 };
 
 /**
  * Autorización por rol. Usar DESPUÉS de autenticar y resolverEmpresa
- * (este último refresca el rol desde la base).
+ * (este último carga el rol desde la base).
  *
  * Uso: router.post("/", autorizar("admin"), controlador)
  */

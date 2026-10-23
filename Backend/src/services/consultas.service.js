@@ -1,21 +1,13 @@
-import pool from "../data/db.js";
 import { env } from "../config/env.js";
+import { enTransaccion } from "../data/transaccion.js";
 import { AppError } from "../utils/AppError.js";
+import { aCentavos, deCentavos } from "../utils/dinero.js";
 import * as modelo from "../models/consultas.model.js";
+import { conflictosDeEspacio } from "../models/eventos.model.js";
 
 // Recargo por cada hora que supera las 4 incluidas (mismo valor que el sitio).
 const HORAS_INCLUIDAS = 4;
 const PRECIO_HORA_ADICIONAL = "120000";
-
-// El dinero se opera en centavos con BigInt, nunca con floats.
-const aCentavos = (valor) => {
-  const [entera, decimales = ""] = String(valor).split(".");
-  return BigInt(entera) * 100n + BigInt(decimales.padEnd(2, "0").slice(0, 2));
-};
-const deCentavos = (centavos) => {
-  const texto = centavos.toString().padStart(3, "0");
-  return `${texto.slice(0, -2)}.${texto.slice(-2)}`;
-};
 
 const sumarHoras = (hora, horas) => {
   const [h, m] = hora.split(":").map(Number);
@@ -29,33 +21,23 @@ const sinDuplicados = (nombres) => [...new Map(nombres.map((n) => [n.toLowerCase
  * Registra una consulta pública como evento en estado "consultado":
  * cliente + evento + espacios + servicios en UNA transacción (o todo o nada).
  * Los precios salen de la base; el cliente solo indica nombres y cantidades.
+ *
+ * La empresa la elige el cliente (id_empresa) desde el catálogo público. Si no
+ * la envía se usa ID_EMPRESA_CONSULTAS, para no romper el formulario actual.
  */
-export const registrar = async (datos) => {
-  const idEmpresa = env.idEmpresaConsultas;
+export const registrar = async ({ id_empresa, ...datos }) => {
+  const idEmpresa = id_empresa ?? env.idEmpresaConsultas;
   if (!idEmpresa) {
-    console.error("[CONSULTAS] Falta ID_EMPRESA_CONSULTAS en el .env del backend");
-    throw new AppError(503, "El servicio de consultas no está disponible por el momento");
+    throw AppError.badRequest("Debe indicar id_empresa");
   }
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const resultado = await registrarEnTransaccion(client, idEmpresa, datos);
-    await client.query("COMMIT");
-    return resultado;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw error;
-  } finally {
-    client.release();
-  }
+  return enTransaccion((client) => registrarEnTransaccion(client, idEmpresa, datos));
 };
 
 // Separada para poder probarla dentro de una transacción propia con ROLLBACK.
 export const registrarEnTransaccion = async (client, idEmpresa, datos) => {
+  // Una empresa pendiente o deshabilitada no recibe consultas.
   if (!(await modelo.empresaActiva(client, idEmpresa))) {
-    console.error(`[CONSULTAS] La empresa ${idEmpresa} no existe o está deshabilitada`);
-    throw new AppError(503, "El servicio de consultas no está disponible por el momento");
+    throw AppError.notFound("Empresa no encontrada");
   }
 
   const tipo = await modelo.tipoEventoPorNombre(client, idEmpresa, datos.experiencia);
@@ -73,6 +55,20 @@ export const registrarEnTransaccion = async (client, idEmpresa, datos) => {
     throw AppError.badRequest(
       `Los espacios elegidos admiten ${capacidad} personas y se indicaron ${datos.invitados} invitados`
     );
+  }
+
+  // No se aceptan consultas para espacios ya reservados en ese horario. No se
+  // muestra qué evento ocupa el lugar: el que consulta es un tercero.
+  const horaFin = sumarHoras(datos.hora_inicio, datos.duracion_horas);
+  const ocupados = await conflictosDeEspacio(client, idEmpresa, {
+    fecha: datos.fecha,
+    horaInicio: datos.hora_inicio,
+    horaFin,
+    idsEspacio: espacios.map((e) => e.id_espacio)
+  });
+  if (ocupados.length > 0) {
+    const nombres = [...new Set(ocupados.flatMap((c) => c.espacios))].join(", ");
+    throw AppError.conflict(`No hay disponibilidad en esa fecha y horario para: ${nombres}`);
   }
 
   const pedidos = new Map();
@@ -119,7 +115,7 @@ export const registrarEnTransaccion = async (client, idEmpresa, datos) => {
     homenajeado: contacto.homenajeado,
     fecha: datos.fecha,
     horaInicio: datos.hora_inicio,
-    horaFin: sumarHoras(datos.hora_inicio, datos.duracion_horas),
+    horaFin,
     invitados: datos.invitados,
     montoTotal: deCentavos(total),
     observaciones:

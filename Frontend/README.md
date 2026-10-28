@@ -1,16 +1,16 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 app para la zona pública de empresas, el panel de empresa y el panel
+de administración de la plataforma.
 
-Currently, two official plugins are available:
+## Desarrollo local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Copiá `.env.example` como `.env` y completá
+   `VITE_CLERK_PUBLISHABLE_KEY` con la clave publicable de Clerk.
+2. Iniciá el backend en `http://localhost:3001`.
+3. Ejecutá `npm install` y `npm run dev`. Vite exige el puerto `5173`, origen
+   autorizado por el backend para las sesiones de Clerk.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+`VITE_API_URL` apunta por defecto a `http://localhost:3001/api`. Las rutas
+privadas envían el token de sesión automáticamente; el servidor determina
+el rol, la empresa y los precios.

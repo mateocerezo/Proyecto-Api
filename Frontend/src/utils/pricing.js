@@ -1,37 +1,30 @@
-import { addOns, experiences, spaces } from '../data/catalog'
+import { EXTRA_HOUR_PRICE, INCLUDED_HOURS } from '../data/catalog'
 
 export function calculateTotalEstimate({
-  experienceId,
-  guests,
-  duration,
+  catalog,
+  experienceName,
   selectedSpaces,
-  selectedAddOns,
+  selectedServices,
+  duration,
 }) {
-  const experience = experiences.find((item) => item.id === experienceId)
-
-  if (!experience) {
-    throw new Error(`Experiencia desconocida: ${experienceId}`)
-  }
-
-  const selectedOptionalSpaces = spaces.filter(
-    (space) => !space.required && selectedSpaces[space.id],
-  )
-  const spacesCost = selectedOptionalSpaces.reduce((sum, space) => sum + space.price, 0)
-  const addOnsCost = addOns.reduce((sum, addon) => {
-    if (!selectedAddOns[addon.id]) return sum
-    return sum + addon.price * (addon.type === 'perGuest' ? guests : 1)
+  const experience = catalog.tipos_evento.find((item) => item.nombre === experienceName)
+  const spacesCost = catalog.espacios
+    .filter((item) => selectedSpaces.includes(item.nombre))
+    .reduce((sum, item) => sum + Number(item.precio_adicional), 0)
+  const servicesCost = catalog.servicios.reduce((sum, item) => {
+    const service = selectedServices[item.nombre]
+    const quantity = service?.enabled ? Number(service.cantidad || 0) : 0
+    return sum + Number(item.precio) * quantity
   }, 0)
-  const additionalHours = Math.max(0, duration - 4)
-  const additionalHoursCost = additionalHours * 120000
+  const additionalHours = Math.max(0, duration - INCLUDED_HOURS)
+  const additionalHoursCost = additionalHours * EXTRA_HOUR_PRICE
 
   return {
     experience,
-    total: experience.price + spacesCost + addOnsCost + additionalHoursCost,
     spacesCost,
-    addOnsCost,
+    servicesCost,
     additionalHours,
     additionalHoursCost,
-    optionalSpacesCount: selectedOptionalSpaces.length,
-    addOnsCount: addOns.filter((addon) => selectedAddOns[addon.id]).length,
+    total: Number(experience?.precio_base || 0) + spacesCost + servicesCost + additionalHoursCost,
   }
 }

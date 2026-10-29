@@ -86,21 +86,28 @@ export const catalogoPublico = async (idEmpresa) => {
 
 // ---------- SuperAdmin ----------
 
-const FILTRO_ESTADO = { pendientes: false, activas: true, todas: null };
+const FILTRO_ESTADO = {
+  pendientes: "pendiente",
+  activas: "activa",
+  inactivas: "inactiva",
+  todas: null
+};
 
 export const listar = (estado) => modelo.listar(FILTRO_ESTADO[estado]);
 
-const cambiarActiva = async (idEmpresa, activa) => {
-  const empresa = await modelo.cambiarActiva(idEmpresa, activa);
+const cambiarEstado = async (idEmpresa, estado) => {
+  const empresa = await modelo.cambiarEstado(idEmpresa, estado);
   if (!empresa) throw AppError.notFound(NO_ENCONTRADA);
   return empresa;
 };
 
-export const aprobar = (idEmpresa) => cambiarActiva(idEmpresa, true);
+export const aprobar = (idEmpresa) => cambiarEstado(idEmpresa, "activa");
+
+export const activar = (idEmpresa) => cambiarEstado(idEmpresa, "activa");
 
 // Suspende una empresa ya aprobada: sus usuarios pierden acceso en el próximo
 // request (resolverEmpresa) y deja de aparecer en el catálogo público.
-export const desactivar = (idEmpresa) => cambiarActiva(idEmpresa, false);
+export const desactivar = (idEmpresa) => cambiarEstado(idEmpresa, "inactiva");
 
 // Rechaza una solicitud de registro: la borra para liberar nombre y CUIT.
 export const rechazar = async (idEmpresa) => {

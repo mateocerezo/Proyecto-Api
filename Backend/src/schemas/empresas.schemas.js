@@ -36,9 +36,11 @@ export const registrarEmpresaSchema = objetoEstricto({
   }).optional()
 });
 
-// GET /api/superadmin/empresas?estado=pendientes|activas|todas
+// GET /api/superadmin/empresas?estado=pendientes|activas|inactivas|todas
 export const listarEmpresasQuerySchema = z.object({
   estado: z
-    .enum(["pendientes", "activas", "todas"], { error: "estado debe ser pendientes, activas o todas" })
+    .enum(["pendientes", "activas", "inactivas", "todas"], {
+      error: "estado debe ser pendientes, activas, inactivas o todas"
+    })
     .default("pendientes")
 });

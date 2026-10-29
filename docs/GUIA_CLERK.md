@@ -8,7 +8,7 @@
 > - Registro: body `{ empresa: {...}, admin?: { nombre, apellido } }`; si no
 >   viene `admin`, se usan nombre y apellido del perfil de Clerk.
 > - Vincular usuarios existentes: `npm run vincular-clerk -- --usuario <id> --clerk user_...`.
-> - Pendiente: frontend (sección 5) y webhooks (4.8).
+> - Pendiente: webhooks (4.8).
 
 Objetivo: que el SuperAdmin y los usuarios de las empresas inicien sesión con
 Clerk, sin perder el modelo multi-tenant actual (empresas, roles, `activa`).
@@ -32,6 +32,11 @@ Consecuencias:
 - Supuesto: **un usuario de Clerk pertenece a una sola empresa**
   (`clerk_user_id` UNIQUE). Si más adelante una persona necesita operar en
   varias empresas, se agrega un selector de empresa; no hace falta ahora.
+- El rol `admin` pertenece a una empresa y sus consultas quedan limitadas a ese
+  tenant. El acceso global al panel de empresas es exclusivo del `superadmin`
+  configurado en `SUPERADMIN_CLERK_USER_ID`.
+- La migración `005_estado_empresas.sql` separa las empresas pendientes de las
+  dadas de baja para que el panel permita aprobar, reactivar y desactivar.
 
 ### Flujo resultante
 

@@ -28,6 +28,10 @@ export const aprobar = async (req, res) => {
   res.json(await servicio.aprobar(req.datos.params.id));
 };
 
+export const activar = async (req, res) => {
+  res.json(await servicio.activar(req.datos.params.id));
+};
+
 export const desactivar = async (req, res) => {
   res.json(await servicio.desactivar(req.datos.params.id));
 };

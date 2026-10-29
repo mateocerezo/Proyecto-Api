@@ -5,7 +5,7 @@ import pool from "../data/db.js";
 // datos internos; las de gestión las usa únicamente el SuperAdmin.
 
 const COLUMNAS_PUBLICAS = "id_empresa, nombre, email, telefono";
-const COLUMNAS_GESTION = "id_empresa, nombre, cuit, email, telefono, activa, fecha_alta";
+const COLUMNAS_GESTION = "id_empresa, nombre, cuit, email, telefono, activa, estado, fecha_alta";
 
 // ---------- Público (landing) ----------
 
@@ -29,8 +29,8 @@ export const buscarActiva = async (idEmpresa) => {
 // Nace inactiva: no puede operar hasta que la apruebe el SuperAdmin.
 export const crearPendiente = async (client, { nombre, cuit, email, telefono }) => {
   const { rows } = await client.query(
-    `INSERT INTO empresas (nombre, cuit, email, telefono, activa)
-     VALUES ($1, $2, $3, $4, false)
+    `INSERT INTO empresas (nombre, cuit, email, telefono, activa, estado)
+     VALUES ($1, $2, $3, $4, false, 'pendiente')
      RETURNING ${COLUMNAS_GESTION}`,
     [nombre, cuit, email, telefono ?? null]
   );
@@ -58,21 +58,24 @@ export const crearUsuario = async (client, { idEmpresa, idRol, clerkUserId, nomb
 
 // ---------- SuperAdmin ----------
 
-// activa: true | false | null (todas).
-export const listar = async (activa) => {
+// estado: pendiente | activa | inactiva | null (todas).
+export const listar = async (estado) => {
   const { rows } = await pool.query(
     `SELECT ${COLUMNAS_GESTION} FROM empresas
-      WHERE ($1::boolean IS NULL OR activa = $1)
+      WHERE ($1::text IS NULL OR estado = $1)
       ORDER BY fecha_alta DESC`,
-    [activa]
+    [estado]
   );
   return rows;
 };
 
-export const cambiarActiva = async (idEmpresa, activa) => {
+export const cambiarEstado = async (idEmpresa, estado) => {
+  const activa = estado === "activa";
   const { rows } = await pool.query(
-    `UPDATE empresas SET activa = $2 WHERE id_empresa = $1 RETURNING ${COLUMNAS_GESTION}`,
-    [idEmpresa, activa]
+    `UPDATE empresas SET activa = $2, estado = $3
+      WHERE id_empresa = $1
+     RETURNING ${COLUMNAS_GESTION}`,
+    [idEmpresa, activa, estado]
   );
   return rows[0] ?? null;
 };
@@ -84,7 +87,7 @@ export const cambiarActiva = async (idEmpresa, activa) => {
  */
 export const eliminarPendiente = async (client, idEmpresa) => {
   const { rows } = await client.query(
-    "SELECT 1 FROM empresas WHERE id_empresa = $1 AND NOT activa FOR UPDATE",
+    "SELECT 1 FROM empresas WHERE id_empresa = $1 AND estado = 'pendiente' FOR UPDATE",
     [idEmpresa]
   );
   if (rows.length === 0) return false;

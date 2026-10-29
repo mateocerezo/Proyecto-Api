@@ -12,6 +12,7 @@ router.use(autenticarSuperAdmin);
 
 router.get("/empresas", validar({ query: listarEmpresasQuerySchema }), ctrl.listar);
 router.patch("/empresas/:id/aprobar", validar({ params: idParamSchema }), ctrl.aprobar);
+router.patch("/empresas/:id/activar", validar({ params: idParamSchema }), ctrl.activar);
 router.patch("/empresas/:id/desactivar", validar({ params: idParamSchema }), ctrl.desactivar);
 router.delete("/empresas/:id", validar({ params: idParamSchema }), ctrl.rechazar);
 

@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { formatBookingDate } from '../data/catalog'
 import { useSession } from '../session/useSession'
-import { estadoInfo } from '../utils/estados'
 
 const TABS = [
   { value: 'pendientes', label: 'Pendientes' },
   { value: 'activas', label: 'Activas' },
+  { value: 'inactivas', label: 'Inactivas' },
   { value: 'todas', label: 'Todas' },
 ]
 
@@ -37,11 +37,14 @@ export function AdminPanel() {
   async function act(company, action) {
     const prompts = {
       approve: `¿Aprobar a ${company.nombre}?`,
+      activate: `¿Volver a activar a ${company.nombre}?`,
       deactivate: `¿Desactivar a ${company.nombre}? Sus usuarios perderán el acceso.`,
       reject: `¿Rechazar y borrar a ${company.nombre}? Esta acción no se puede deshacer.`,
     }
     if (!window.confirm(prompts[action])) return
-    const route = action === 'approve' ? 'aprobar' : action === 'deactivate' ? 'desactivar' : ''
+    const route = action === 'approve' ? 'aprobar'
+      : action === 'activate' ? 'activar'
+        : action === 'deactivate' ? 'desactivar' : ''
     try {
       setError('')
       await api(`/superadmin/empresas/${company.id_empresa}${route ? `/${route}` : ''}`, {
@@ -70,24 +73,29 @@ export function AdminPanel() {
         : <div className="table-scroll"><table>
           <thead><tr><th>Empresa</th><th>CUIT</th><th>Contacto</th><th>Estado</th><th>Alta</th><th>Acciones</th></tr></thead>
           <tbody>{companies.map((company) => {
-            const state = estadoInfo(company.activa ? 'confirmado' : 'inactiva')
+            const state = {
+              pendiente: { label: 'Pendiente', color: 'blue' },
+              activa: { label: 'Activa', color: 'green' },
+              inactiva: { label: 'Inactiva', color: 'gray' },
+            }[company.estado] || { label: 'Estado desconocido', color: 'gray' }
             return <tr key={company.id_empresa}>
               <td><strong>{company.nombre}</strong></td>
               <td>{company.cuit}</td>
               <td>{company.email}{company.telefono && <small className="table-subtext">{company.telefono}</small>}</td>
-              <td><span className={`status-pill status-${state.color}`}>{company.activa ? 'Activa' : 'Inactiva'}</span></td>
+              <td><span className={`status-pill status-${state.color}`}>{state.label}</span></td>
               <td>{formatBookingDate(company.fecha_alta?.slice(0, 10))}</td>
               <td className="table-actions">
-                {!company.activa && <>
+                {company.estado === 'pendiente' && <>
                   <button className="button button-small" onClick={() => act(company, 'approve')}>Aprobar</button>
                   <button className="button button-small button-danger" onClick={() => act(company, 'reject')}>Rechazar</button>
                 </>}
-                {company.activa && <button className="button button-small button-secondary" onClick={() => act(company, 'deactivate')}>Desactivar</button>}
+                {company.estado === 'activa' && <button className="button button-small button-secondary" onClick={() => act(company, 'deactivate')}>Dar de baja</button>}
+                {company.estado === 'inactiva' && <button className="button button-small" onClick={() => act(company, 'activate')}>Reactivar</button>}
               </td>
             </tr>
           })}</tbody>
         </table></div>}
-    <p className="muted">Las empresas pendientes y desactivadas todavía aparecen como «Inactiva».</p>
+    <p className="muted">Las empresas pendientes, activas y dadas de baja se muestran por separado.</p>
     <Link to="/" className="text-link">Ver zona pública</Link>
   </main>
 }

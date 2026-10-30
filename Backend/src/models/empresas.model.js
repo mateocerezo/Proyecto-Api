@@ -1,11 +1,19 @@
 import pool from "../data/db.js";
+import { armarSet, exigirEmpresa } from "../utils/sql.js";
 
 // La tabla empresas es la raíz de los tenants: estas consultas no filtran por
 // id_empresa del token. Las públicas devuelven SOLO empresas activas y nunca
 // datos internos; las de gestión las usa únicamente el SuperAdmin.
 
-const COLUMNAS_PUBLICAS = "id_empresa, nombre, email, telefono";
+// id_portada: primera foto de la empresa (no de un espacio), o NULL.
+const COLUMNAS_PUBLICAS = `id_empresa, nombre, email, telefono, descripcion, direccion,
+  (SELECT MIN(i.id_imagen) FROM imagenes i
+    WHERE i.id_empresa = empresas.id_empresa AND i.id_espacio IS NULL) AS id_portada`;
 const COLUMNAS_GESTION = "id_empresa, nombre, cuit, email, telefono, activa, estado, fecha_alta";
+const COLUMNAS_PERFIL = "id_empresa, nombre, cuit, email, telefono, descripcion, direccion, estado";
+// El CUIT y el estado no los cambia la empresa: el CUIT la identifica ante el
+// SuperAdmin y el estado lo maneja solo él.
+const EDITABLES_PERFIL = ["nombre", "email", "telefono", "descripcion", "direccion"];
 
 // ---------- Público (landing) ----------
 
@@ -20,6 +28,29 @@ export const buscarActiva = async (idEmpresa) => {
   const { rows } = await pool.query(
     `SELECT ${COLUMNAS_PUBLICAS} FROM empresas WHERE id_empresa = $1 AND activa`,
     [idEmpresa]
+  );
+  return rows[0] ?? null;
+};
+
+// ---------- Perfil de la empresa logueada ----------
+
+export const buscarPerfil = async (idEmpresa) => {
+  exigirEmpresa(idEmpresa);
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNAS_PERFIL} FROM empresas WHERE id_empresa = $1`,
+    [idEmpresa]
+  );
+  return rows[0] ?? null;
+};
+
+export const actualizarPerfil = async (idEmpresa, cambios) => {
+  exigirEmpresa(idEmpresa);
+  const { set, valores } = armarSet(cambios, EDITABLES_PERFIL, 2);
+  const { rows } = await pool.query(
+    `UPDATE empresas SET ${set}
+      WHERE id_empresa = $1
+     RETURNING ${COLUMNAS_PERFIL}`,
+    [idEmpresa, ...valores]
   );
   return rows[0] ?? null;
 };

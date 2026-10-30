@@ -1,8 +1,9 @@
-import { UserButton } from '@clerk/react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useNavigate, useParams } from 'react-router'
 import { formatBookingDate, formatCurrency } from '../data/catalog'
+import { imageUrl } from '../services/api'
 import { useSession } from '../session/useSession'
+import { prepareImage } from '../utils/images'
 import { estadoInfo, isPendingResponse } from '../utils/estados'
 
 const EVENT_TABS = [
@@ -16,11 +17,11 @@ export function CompanyPanel() {
   return <main className="platform-wrap">
     <div className="panel-topline">
       <div><p className="eyebrow">{user?.empresa || 'Panel de empresa'}</p><h1>Panel de gestión</h1></div>
-      <UserButton />
     </div>
     <nav className="panel-nav" aria-label="Panel de empresa">
       <Link to="/panel/solicitudes">Solicitudes</Link>
       <Link to="/panel/catalogo">Catálogo</Link>
+      <Link to="/panel/propuesta">Mi propuesta</Link>
     </nav>
     <Outlet />
   </main>
@@ -148,8 +149,7 @@ export function EventDetail() {
   return <section className="panel-content">
     <Link className="text-link" to="/panel/solicitudes">← Volver a solicitudes</Link>
     <div className="section-title-row"><div><p className="eyebrow">Solicitud #{event.id_evento}</p><h2>{event.nombre || event.nombre_homenajeado || 'Detalle de solicitud'}</h2></div><span className={`status-pill status-${state.color}`}>{state.label}</span></div>
-    {error && <p className="notice notice-error" role="alert">{error}</p>}
-    {conflicts.length > 0 && <div className="notice notice-error"><strong>No hay disponibilidad para estos espacios:</strong>{conflicts.map((item) => <p key={item.id_evento}>{item.nombre} · {formatBookingDate(item.fecha_evento)} · {item.horario} · {item.espacios?.join(', ')}</p>)}</div>}
+    {!action && <ResponseErrors error={error} conflicts={conflicts} />}
     <div className="detail-grid">
       <DetailCard title="Fecha y grupo">
         <p>{formatBookingDate(event.fecha_evento)}</p><p>{event.hora_inicio?.slice(0, 5)} a {event.hora_fin?.slice(0, 5)}{endNextDay ? ' del día siguiente' : ''}</p>
@@ -177,19 +177,29 @@ export function EventDetail() {
     {action && <div className="modal-backdrop" role="presentation">
       <form className="platform-card action-modal" onSubmit={respond} role="dialog" aria-modal="true" aria-labelledby="response-title">
         <h3 id="response-title">{action === 'accept' ? 'Confirmar solicitud' : 'Descartar solicitud'}</h3>
+        <ResponseErrors error={error} conflicts={conflicts} />
         {action === 'accept' ? <>
           <p>La seña se registrará como un pago recibido. Total del evento: {formatCurrency.format(Number(event.monto_total))}.</p>
           <label>Seña<input autoFocus type="number" min="0.01" max={event.monto_total} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required /></label>
           <label>Medio de pago<select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option></select></label>
         </> : <label>Motivo (opcional)<textarea autoFocus maxLength="500" value={reason} onChange={(e) => setReason(e.target.value)} /></label>}
         <div className="action-row">
-          <button type="button" className="button button-secondary" onClick={() => setAction('')}>Cancelar</button>
+          <button type="button" className="button button-secondary" onClick={() => { setAction(''); setError(''); setConflicts([]) }}>Cancelar</button>
           <button className={action === 'accept' ? 'button' : 'button button-danger'}>Confirmar</button>
         </div>
       </form>
     </div>}
     <button className="button button-secondary button-small" onClick={() => navigate('/panel/solicitudes')}>Volver al listado</button>
   </section>
+}
+
+// Errores al responder una solicitud: se muestran dentro del modal mientras
+// está abierto, para que no queden tapados por el fondo oscuro.
+function ResponseErrors({ error, conflicts }) {
+  return <>
+    {error && <p className="notice notice-error" role="alert">{error}</p>}
+    {conflicts.length > 0 && <div className="notice notice-error" role="alert"><strong>No hay disponibilidad para estos espacios:</strong>{conflicts.map((item) => <p key={item.id_evento}>{item.nombre} · {formatBookingDate(item.fecha_evento)} · {item.horario} · {item.espacios?.join(', ')}</p>)}</div>}
+  </>
 }
 
 function DetailCard({ title, children }) {
@@ -306,7 +316,7 @@ export function CatalogManager() {
     <div className="tab-list" role="tablist" aria-label="Secciones del catálogo">
       {CATALOG_SECTIONS.map((item) => <button key={item.key} className={selected === item.key ? 'tab active' : 'tab'} role="tab" aria-selected={selected === item.key} onClick={() => { setSelected(item.key); setEditing(null); setError('') }}>{item.title}</button>)}
     </div>
-    {error && <p className="notice notice-error" role="alert">{error}</p>}
+    {error && !editing && <p className="notice notice-error" role="alert">{error}</p>}
     {loadedVersion !== refreshVersion ? <p className="notice">Cargando catálogo…</p>
       : !itemsByType[selected]?.length ? <p className="notice">No hay elementos en esta sección.</p>
         : <div className="catalog-grid">{itemsByType[selected].map((item) => {
@@ -321,6 +331,7 @@ export function CatalogManager() {
     {editing && <div className="modal-backdrop" role="presentation">
       <form className="platform-card action-modal" onSubmit={save} role="dialog" aria-modal="true">
         <h3>{editing.id === null ? `Agregar ${section.title.toLowerCase()}` : 'Editar elemento'}</h3>
+        {error && <p className="notice notice-error" role="alert">{error}</p>}
         {section.fields.map((field) => <label key={field}>{FIELD_LABELS[field]}
           {field === 'descripcion' ? <textarea maxLength="255" value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
             : <input autoFocus={field === 'nombre'} type={field === 'capacidad' ? 'number' : field.startsWith('precio') || field === 'precio' ? 'number' : 'text'} min={field === 'capacidad' ? 1 : field.startsWith('precio') || field === 'precio' ? 0 : undefined} step={field.startsWith('precio') || field === 'precio' ? '0.01' : undefined} maxLength={field === 'nombre' ? 80 : undefined} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} required={field !== 'descripcion'} />}
@@ -329,4 +340,189 @@ export function CatalogManager() {
       </form>
     </div>}
   </section>
+}
+
+const PROFILE_FIELDS = ['nombre', 'email', 'telefono', 'direccion', 'descripcion']
+const MAX_COMPANY_PHOTOS = 10
+const MAX_SPACE_PHOTOS = 8
+
+const profileForm = (profile) => Object.fromEntries(PROFILE_FIELDS.map((key) => [key, profile[key] ?? '']))
+
+// Perfil público de la empresa (lo que el cliente ve en la landing) y sus fotos.
+export function CompanyProfile() {
+  const { api, user, refresh } = useSession()
+  const [profile, setProfile] = useState(null)
+  const [form, setForm] = useState({})
+  const [spaces, setSpaces] = useState([])
+  const [images, setImages] = useState([])
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    Promise.all([api('/mi-empresa'), api('/catalogos/espacios'), api('/mi-empresa/imagenes')])
+      .then(([result, spaceList, imageList]) => {
+        if (!active) return
+        setProfile(result)
+        setForm(profileForm(result))
+        setSpaces(spaceList)
+        setImages(imageList)
+      })
+      .catch((failure) => { if (active) setError(failure.message || 'No se pudo cargar la propuesta.') })
+    return () => { active = false }
+  }, [api])
+
+  const canEdit = user?.rol === 'admin'
+  const update = (key) => (event) => { setForm({ ...form, [key]: event.target.value }); setSaved(false) }
+  const imagesOf = (spaceId) => images.filter((image) => image.id_espacio === spaceId).map((image) => image.id_imagen)
+
+  async function save(event) {
+    event.preventDefault()
+    const body = Object.fromEntries(PROFILE_FIELDS
+      .filter((key) => form[key].trim() !== String(profile[key] ?? ''))
+      .map((key) => [key, form[key]]))
+    if (Object.keys(body).length === 0) {
+      setError('No hay cambios para guardar.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const result = await api('/mi-empresa', { method: 'PATCH', body })
+      setProfile(result)
+      setForm(profileForm(result))
+      setSaved(true)
+      // El nombre de la empresa también se muestra en el encabezado del panel.
+      if ('nombre' in body) refresh()
+    } catch (failure) {
+      setError(failure.detalles?.length
+        ? failure.detalles.map((detail) => detail.mensaje).join(' · ')
+        : failure.message || 'No se pudo guardar la propuesta.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!profile) return <section className="panel-content">{error ? <p className="notice notice-error" role="alert">{error}</p> : <p className="notice">Cargando propuesta…</p>}</section>
+
+  return <section className="panel-content">
+    <div className="section-title-row"><div><p className="eyebrow">Contenido público</p><h2>Mi propuesta</h2></div>
+      <Link className="text-link" to={`/empresas/${profile.id_empresa}`}>Ver como cliente →</Link></div>
+    <p className="muted">Esto es lo que ven los clientes al elegir tu empresa. Las experiencias, espacios y servicios se editan en Catálogo.</p>
+    <div className="profile-layout">
+      <form className="platform-card form-card profile-form" onSubmit={save}>
+        <h3>Datos de la empresa</h3>
+        {error && <p className="notice notice-error" role="alert">{error}</p>}
+        {saved && <p className="notice notice-success" role="status">Propuesta actualizada.</p>}
+        <fieldset disabled={!canEdit || saving}>
+          <div className="field-grid">
+            <label>Nombre de la empresa<input maxLength="100" value={form.nombre} onChange={update('nombre')} required /></label>
+            <label>CUIT<input value={profile.cuit} readOnly disabled /></label>
+            <label>Email de contacto<input type="email" maxLength="120" value={form.email} onChange={update('email')} required /></label>
+            <label>Teléfono<input type="tel" maxLength="30" value={form.telefono} onChange={update('telefono')} /></label>
+          </div>
+          <label>Dirección<input maxLength="200" value={form.direccion} onChange={update('direccion')} placeholder="Calle, número, ciudad" /></label>
+          <label>Descripción de la propuesta<textarea maxLength="1000" rows="6" value={form.descripcion} onChange={update('descripcion')} placeholder="Contá qué hace distinta a tu propuesta: estilo, ambientación, qué incluye…" /></label>
+          <small className="muted">{form.descripcion.length}/1000</small>
+        </fieldset>
+        {canEdit ? <div className="action-row"><button className="button" disabled={saving}>{saving ? 'Guardando…' : 'Guardar cambios'}</button></div>
+          : <p className="notice">Solo el administrador de la empresa puede editar la propuesta.</p>}
+      </form>
+      <aside aria-label="Vista previa">
+        <p className="eyebrow">Vista previa</p>
+        <CompanyCardPreview company={{ ...profile, ...form, id_portada: imagesOf(null)[0] }} />
+      </aside>
+    </div>
+
+    <div className="platform-card photo-section">
+      <h3>Fotos de la empresa</h3>
+      <p className="muted">La primera es la portada en el listado de empresas. Hasta {MAX_COMPANY_PHOTOS} fotos.</p>
+      <PhotoManager images={imagesOf(null)} max={MAX_COMPANY_PHOTOS} canEdit={canEdit} label="la empresa"
+        onUploaded={(image) => setImages((current) => [...current, image])}
+        onDeleted={(id) => setImages((current) => current.filter((image) => image.id_imagen !== id))} />
+    </div>
+
+    <div className="platform-card photo-section">
+      <h3>Fotos de los salones</h3>
+      {spaces.length === 0
+        ? <p className="notice">Todavía no cargaste espacios. Agregalos en <Link className="text-link" to="/panel/catalogo">Catálogo</Link> y después subí sus fotos acá.</p>
+        : <p className="muted">Se muestran al cliente cuando elige los espacios. Hasta {MAX_SPACE_PHOTOS} fotos por espacio.</p>}
+      {spaces.map((space) => <div className="photo-space" key={space.id_espacio}>
+        <h4>{space.nombre} <small className="muted">· capacidad {space.capacidad}</small></h4>
+        <PhotoManager images={imagesOf(space.id_espacio)} spaceId={space.id_espacio} max={MAX_SPACE_PHOTOS} canEdit={canEdit} label={space.nombre}
+          onUploaded={(image) => setImages((current) => [...current, image])}
+          onDeleted={(id) => setImages((current) => current.filter((image) => image.id_imagen !== id))} />
+      </div>)}
+    </div>
+  </section>
+}
+
+// Miniaturas con botón para borrar y un selector para subir varias fotos.
+function PhotoManager({ images, spaceId = null, max, canEdit, label, onUploaded, onDeleted }) {
+  const { api } = useSession()
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+
+  async function upload(event) {
+    const files = [...event.target.files]
+    event.target.value = ''
+    if (!files.length) return
+    setError('')
+    const room = max - images.length
+    if (files.length > room) {
+      setError(room > 0 ? `Podés subir ${room} foto${room === 1 ? '' : 's'} más.` : `Ya hay ${max} fotos; borrá alguna para subir otra.`)
+      return
+    }
+    try {
+      for (const [index, file] of files.entries()) {
+        setBusy(`Subiendo ${index + 1} de ${files.length}…`)
+        const blob = await prepareImage(file)
+        onUploaded(await api(`/mi-empresa/imagenes${spaceId === null ? '' : `?espacio=${spaceId}`}`, { method: 'POST', body: blob }))
+      }
+    } catch (failure) {
+      setError(failure.message || 'No se pudo subir la foto.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function remove(id) {
+    if (!window.confirm('¿Borrar esta foto?')) return
+    setError('')
+    try {
+      await api(`/mi-empresa/imagenes/${id}`, { method: 'DELETE' })
+      onDeleted(id)
+    } catch (failure) {
+      setError(failure.message || 'No se pudo borrar la foto.')
+    }
+  }
+
+  return <div className="photo-manager">
+    {error && <p className="notice notice-error" role="alert">{error}</p>}
+    <div className="photo-grid">
+      {images.map((id, index) => <figure className="photo-item" key={id}>
+        <img src={imageUrl(id)} alt={`Foto ${index + 1} de ${label}`} loading="lazy" />
+        {index === 0 && spaceId === null && <span className="photo-badge">Portada</span>}
+        {canEdit && <button type="button" className="button button-small button-danger" onClick={() => remove(id)} aria-label={`Borrar foto ${index + 1} de ${label}`}>Borrar</button>}
+      </figure>)}
+      {canEdit && images.length < max && <label className={`photo-add${busy ? ' is-busy' : ''}`}>
+        <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={upload} disabled={Boolean(busy)} />
+        <span>{busy || '+ Agregar fotos'}</span>
+      </label>}
+    </div>
+    {!canEdit && images.length === 0 && <p className="muted">Sin fotos.</p>}
+  </div>
+}
+
+function CompanyCardPreview({ company }) {
+  return <article className="platform-card company-card">
+    {company.id_portada && <img className="company-cover" src={imageUrl(company.id_portada)} alt="" />}
+    <span className="eyebrow">Propuesta disponible</span>
+    <h2>{company.nombre || 'Nombre de la empresa'}</h2>
+    {company.descripcion && <p className="company-summary">{company.descripcion}</p>}
+    {company.direccion && <p>{company.direccion}</p>}
+    {company.email && <p>{company.email}</p>}
+    {company.telefono && <p>{company.telefono}</p>}
+  </article>
 }

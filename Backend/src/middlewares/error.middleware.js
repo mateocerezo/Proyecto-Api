@@ -18,7 +18,10 @@ const ERRORES_PG = {
 };
 
 // Errores de conexión con la base: el cliente recibe 503, no 500.
-const ERRORES_CONEXION = new Set(["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "57P01", "57P03"]);
+// EAI_AGAIN = fallo temporal de DNS; ECONNRESET = la conexión se cortó a mitad.
+const ERRORES_CONEXION = new Set([
+  "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ENETUNREACH", "57P01", "57P03"
+]);
 
 /**
  * Manejador global de errores. Express 5 envía acá automáticamente las

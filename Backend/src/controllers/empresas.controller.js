@@ -18,6 +18,16 @@ export const catalogo = async (req, res) => {
   res.json(await servicio.catalogoPublico(req.datos.params.id));
 };
 
+// ---------- Empresa logueada ----------
+
+export const perfil = async (req, res) => {
+  res.json(await servicio.perfil(req.id_empresa));
+};
+
+export const actualizarPerfil = async (req, res) => {
+  res.json(await servicio.actualizarPerfil(req.id_empresa, req.datos.body));
+};
+
 // ---------- SuperAdmin ----------
 
 export const listar = async (req, res) => {

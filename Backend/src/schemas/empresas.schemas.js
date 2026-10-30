@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { objetoEstricto, textoOpcional, textoRequerido } from "../utils/validaciones.js";
+import { alMenosUnCampo, idParamSchema, objetoEstricto, textoOpcional, textoRequerido } from "../utils/validaciones.js";
 
 // Los largos máximos coinciden con las columnas de empresas y usuarios.
 
@@ -14,7 +14,7 @@ const email = (campo) =>
 // Registro de una empresa por una persona ya logueada en Clerk, que queda como
 // su admin. No acepta "activa": toda empresa nace pendiente de aprobación.
 // admin es opcional: si no viene, nombre y apellido se toman del perfil de Clerk.
-// El email del admin SIEMPRE sale de Clerk (verificado), nunca del body.
+// El email del admin SIEMPRE sale de Clerk, nunca del body.
 export const registrarEmpresaSchema = objetoEstricto({
   empresa: objetoEstricto({
     nombre: textoRequerido("El nombre", 100),
@@ -34,6 +34,23 @@ export const registrarEmpresaSchema = objetoEstricto({
     nombre: textoRequerido("El nombre", 80),
     apellido: textoRequerido("El apellido", 80)
   }).optional()
+});
+
+// PATCH /api/mi-empresa: el admin edita la propuesta que ve el cliente.
+// CUIT y estado no se aceptan (strict). "" o null borran los opcionales.
+export const actualizarPerfilSchema = alMenosUnCampo(
+  objetoEstricto({
+    nombre: textoRequerido("El nombre", 100),
+    email: email("El email de la empresa"),
+    telefono: textoOpcional("El teléfono", 30),
+    descripcion: textoOpcional("La descripción", 1000),
+    direccion: textoOpcional("La dirección", 200)
+  }).partial()
+);
+
+// POST /api/mi-empresa/imagenes?espacio=ID (opcional).
+export const subirImagenQuerySchema = z.object({
+  espacio: idParamSchema.shape.id.optional()
 });
 
 // GET /api/superadmin/empresas?estado=pendientes|activas|inactivas|todas

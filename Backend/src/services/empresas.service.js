@@ -8,6 +8,7 @@ import * as usuariosModel from "../models/usuarios.model.js";
 import * as tiposEventoModel from "../models/tiposEvento.model.js";
 import * as espaciosModel from "../models/espacios.model.js";
 import * as serviciosModel from "../models/servicios.model.js";
+import * as imagenesModel from "../models/imagenes.model.js";
 
 const NO_ENCONTRADA = "Empresa no encontrada";
 const ROL_ADMIN = "admin";
@@ -16,11 +17,10 @@ const ROL_ADMIN = "admin";
 
 const CUENTA_CON_EMPRESA = "Tu cuenta ya tiene una empresa registrada";
 
-// Email principal de la cuenta de Clerk, solo si está verificado.
-const emailVerificado = (persona) => {
-  const principal = persona.primaryEmailAddress;
-  return principal?.verification?.status === "verified" ? principal.emailAddress.toLowerCase() : null;
-};
+// Email principal de la cuenta de Clerk. No se exige que esté verificado: la
+// verificación por código está desactivada en el Dashboard (proyecto académico).
+const emailPrincipal = (persona) =>
+  (persona.primaryEmailAddress ?? persona.emailAddresses?.[0])?.emailAddress?.toLowerCase() ?? null;
 
 /**
  * Alta de una empresa nueva por una persona logueada en Clerk:
@@ -36,9 +36,9 @@ export const registrar = async (clerkUserId, { empresa, admin }) => {
   }
 
   const persona = await clerkClient.users.getUser(clerkUserId);
-  const email = emailVerificado(persona);
+  const email = emailPrincipal(persona);
   if (!email) {
-    throw AppError.badRequest("La cuenta no tiene un email verificado");
+    throw AppError.badRequest("La cuenta no tiene un email cargado");
   }
   const nombre = admin?.nombre ?? persona.firstName?.trim().slice(0, 80);
   const apellido = admin?.apellido ?? persona.lastName?.trim().slice(0, 80);
@@ -76,12 +76,40 @@ export const catalogoPublico = async (idEmpresa) => {
   const empresa = await modelo.buscarActiva(idEmpresa);
   if (!empresa) throw AppError.notFound(NO_ENCONTRADA);
 
-  const [tipos_evento, espacios, servicios] = await Promise.all([
+  const [tipos_evento, espacios, servicios, imagenes] = await Promise.all([
     tiposEventoModel.listar(idEmpresa),
     espaciosModel.listar(idEmpresa),
-    serviciosModel.listar(idEmpresa)
+    serviciosModel.listar(idEmpresa),
+    imagenesModel.listar(idEmpresa)
   ]);
-  return { empresa, tipos_evento, espacios, servicios };
+  // Solo los ids: el frontend arma la URL /api/imagenes/:id.
+  const fotos = (idEspacio) =>
+    imagenes.filter((i) => i.id_espacio === idEspacio).map((i) => i.id_imagen);
+  return {
+    empresa: { ...empresa, imagenes: fotos(null) },
+    tipos_evento,
+    espacios: espacios.map((e) => ({ ...e, imagenes: fotos(e.id_espacio) })),
+    servicios
+  };
+};
+
+// ---------- Empresa logueada ----------
+
+export const perfil = async (idEmpresa) => {
+  const empresa = await modelo.buscarPerfil(idEmpresa);
+  if (!empresa) throw AppError.notFound(NO_ENCONTRADA);
+  return empresa;
+};
+
+export const actualizarPerfil = async (idEmpresa, cambios) => {
+  let empresa;
+  try {
+    empresa = await modelo.actualizarPerfil(idEmpresa, cambios);
+  } catch (error) {
+    throw traducirErrorPg(error, { duplicado: "Ya existe otra empresa con ese nombre" });
+  }
+  if (!empresa) throw AppError.notFound(NO_ENCONTRADA);
+  return empresa;
 };
 
 // ---------- SuperAdmin ----------

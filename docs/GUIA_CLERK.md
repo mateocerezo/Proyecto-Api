@@ -210,7 +210,7 @@ login propio desaparece.
 ### 4.6 Registro de empresa
 
 La persona ya existe en Clerk; el body solo trae los datos de la empresa.
-Nombre, apellido y email se toman **de Clerk** (email ya verificado), no del body.
+Nombre, apellido y email se toman **de Clerk**, no del body (la verificación de email está desactivada).
 
 `schemas/empresas.schemas.js`:
 

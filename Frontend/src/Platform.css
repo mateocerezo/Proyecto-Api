@@ -501,6 +501,10 @@ textarea {
   overflow: auto;
 }
 
+.action-modal .notice {
+  margin: 0;
+}
+
 .action-modal h3 {
   margin: 0;
   font-family: var(--serif);
@@ -567,7 +571,198 @@ tr:last-child td {
   margin: 0 auto;
 }
 
+/* Mi propuesta (perfil público de la empresa) */
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.profile-form fieldset {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.notice-success {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+.company-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.company-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.company-description {
+  max-width: 70ch;
+  white-space: pre-line;
+}
+
+.photo-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.photo-section h3,
+.photo-space h4 {
+  margin: 0;
+}
+
+.photo-space {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.photo-item {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.photo-item img,
+.photo-add {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.photo-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--violet);
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.photo-add {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.photo-add:hover,
+.photo-add:focus-within {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+.photo-add.is-busy {
+  cursor: progress;
+}
+
+.photo-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.gallery-large {
+  margin-bottom: 24px;
+}
+
+.gallery-small {
+  margin-top: 8px;
+}
+
+.gallery-thumb {
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  cursor: zoom-in;
+}
+
+.gallery-thumb img {
+  display: block;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.gallery-large .gallery-thumb img {
+  width: 260px;
+  height: 180px;
+}
+
+.gallery-small .gallery-thumb img {
+  width: 72px;
+  height: 54px;
+}
+
+.lightbox figure {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  justify-items: center;
+}
+
+.lightbox img {
+  max-width: min(1100px, 92vw);
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.lightbox figcaption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+}
+
+
 @media (max-width: 700px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-large .gallery-thumb img {
+    width: 200px;
+    height: 140px;
+  }
+
   .platform-header {
     min-height: 62px;
     padding-inline: 16px;
@@ -578,7 +773,7 @@ tr:last-child td {
     font-size: 0.78rem;
   }
 
-  .platform-header nav a:nth-child(2) {
+  .platform-header nav .nav-secondary {
     display: none;
   }
 

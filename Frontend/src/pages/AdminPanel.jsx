@@ -1,4 +1,3 @@
-import { UserButton } from '@clerk/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { formatBookingDate } from '../data/catalog'
@@ -61,7 +60,6 @@ export function AdminPanel() {
   return <main className="platform-wrap">
     <div className="panel-topline">
       <div><p className="eyebrow">Administración de plataforma</p><h1>Empresas</h1></div>
-      <UserButton />
     </div>
     <p className="muted">Solo se administran empresas. Este panel no muestra solicitudes, clientes ni catálogos.</p>
     <div className="tab-list" role="tablist" aria-label="Estado de empresas">

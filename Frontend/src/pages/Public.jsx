@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatCurrency, getDefaultBookingDate, getTodayDate, timeSlots } from '../data/catalog'
-import { request } from '../services/api'
+import { Gallery } from '../components/Gallery'
+import { imageUrl, request } from '../services/api'
 import { submitInquiry } from '../services/inquiryService'
 import { calculateTotalEstimate } from '../utils/pricing'
 import { estadoInfo } from '../utils/estados'
@@ -38,8 +39,11 @@ export function CompanyList() {
     {!loading && !error && companies.length === 0 && <p className="notice">Todavía no hay empresas habilitadas.</p>}
     <section className="company-grid" aria-label="Empresas habilitadas">
       {companies.map((company) => <article className="platform-card company-card" key={company.id_empresa}>
+        {company.id_portada && <img className="company-cover" src={imageUrl(company.id_portada)} alt="" loading="lazy" />}
         <span className="eyebrow">Propuesta disponible</span>
         <h2>{company.nombre}</h2>
+        {company.descripcion && <p className="company-summary">{company.descripcion}</p>}
+        {company.direccion && <p>{company.direccion}</p>}
         {company.email && <p>{company.email}</p>}
         {company.telefono && <p>{company.telefono}</p>}
         <Link className="button" to={`/empresas/${company.id_empresa}`}>Ver propuestas</Link>
@@ -186,8 +190,13 @@ export function CompanyBooking() {
       <Link to="/" className="text-link">← Todas las empresas</Link>
       <p className="eyebrow">Propuesta para celebrar</p>
       <h1>{catalog.empresa.nombre}</h1>
+      {catalog.empresa.descripcion && <p className="company-description">{catalog.empresa.descripcion}</p>}
+      {(catalog.empresa.direccion || catalog.empresa.telefono || catalog.empresa.email) && <p className="muted">
+        {[catalog.empresa.direccion, catalog.empresa.telefono, catalog.empresa.email].filter(Boolean).join(' · ')}
+      </p>}
       <p>Elegí una propuesta, los espacios y servicios. La empresa revisará tu solicitud.</p>
     </div>
+    <Gallery images={catalog.empresa.imagenes} label={catalog.empresa.nombre} />
     {submitted ? <section className="platform-card success-card" role="status">
       <p className="eyebrow">Solicitud enviada</p>
       <h2>¡Gracias! La empresa recibió tu solicitud.</h2>
@@ -227,7 +236,8 @@ export function CompanyBooking() {
         <div className="option-list">
           {catalog.espacios.map((item) => <label className="option-row" key={item.id_espacio}>
             <input type="checkbox" checked={selectedSpaces.includes(item.nombre)} onChange={() => toggleSpace(item.nombre)} />
-            <span><strong>{item.nombre}</strong><small>{item.descripcion} · Capacidad {item.capacidad}</small></span>
+            <span><strong>{item.nombre}</strong><small>{item.descripcion} · Capacidad {item.capacidad}</small>
+              <Gallery images={item.imagenes} label={item.nombre} size="small" /></span>
             <b>{formatCurrency.format(Number(item.precio_adicional))}</b>
           </label>)}
         </div>

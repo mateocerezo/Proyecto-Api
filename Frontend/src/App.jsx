@@ -1,9 +1,10 @@
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router'
-import { UserButton } from '@clerk/react'
+import { UserButton, useAuth } from '@clerk/react'
+import { PLATFORM } from './config/platform'
 import { useSession } from './session/useSession'
 import { AdminPanel } from './pages/AdminPanel'
 import { AccessPage, CompanyRegistration, PendingCompany } from './pages/Access'
-import { CompanyPanel, EventDetail, EventList, CatalogManager } from './pages/CompanyPanel'
+import { CompanyPanel, CompanyProfile, EventDetail, EventList, CatalogManager } from './pages/CompanyPanel'
 import { CompanyBooking, CompanyList } from './pages/Public'
 import './Platform.css'
 
@@ -14,6 +15,34 @@ function destination(status) {
   if (status === 'inactive-company') return '/empresa/pendiente'
   if (status === 'inactive-user') return '/cuenta-inactiva'
   return '/ingresar'
+}
+
+// Enlace al panel que corresponde según el estado de la sesión.
+const PANEL_LINKS = {
+  admin: { to: '/admin', label: 'Administración' },
+  active: { to: '/panel', label: 'Mi panel' },
+  'no-company': { to: '/empresa/registro', label: 'Registrar empresa' },
+  'inactive-company': { to: '/empresa/pendiente', label: 'Estado de mi empresa' },
+  'inactive-user': { to: '/cuenta-inactiva', label: 'Mi cuenta' },
+}
+
+function SiteHeader() {
+  const { isSignedIn } = useAuth()
+  const session = useSession()
+  const panel = PANEL_LINKS[session.status]
+  return <header className="platform-header">
+    <Link to="/" className="platform-brand"><span className="brand-mark">{PLATFORM.mark}</span> {PLATFORM.name}</Link>
+    <nav aria-label="Navegación">
+      <Link to="/">Empresas</Link>
+      {isSignedIn ? <>
+        {panel && <Link to={panel.to}>{panel.label}</Link>}
+        <UserButton />
+      </> : <>
+        <Link className="nav-secondary" to="/cuenta">Registrar empresa</Link>
+        <Link to="/ingresar">Ingresar</Link>
+      </>}
+    </nav>
+  </header>
 }
 
 function RouteGate({ allow, children }) {
@@ -62,14 +91,7 @@ function NotFound() {
 
 export default function App() {
   return <>
-    <header className="platform-header">
-      <Link to="/" className="platform-brand"><span className="brand-mark">NB</span> Noche Brava</Link>
-      <nav aria-label="Navegación">
-        <Link to="/">Empresas</Link>
-        <Link to="/empresa/registro">Registrar empresa</Link>
-        <Link to="/ingresar">Ingresar</Link>
-      </nav>
-    </header>
+    <SiteHeader />
     <Routes>
       <Route path="/" element={<CompanyList />} />
       <Route path="/empresas/:id" element={<CompanyBooking />} />
@@ -85,6 +107,7 @@ export default function App() {
         <Route path="solicitudes" element={<EventList />} />
         <Route path="solicitudes/:id" element={<EventDetail />} />
         <Route path="catalogo" element={<CatalogManager />} />
+        <Route path="propuesta" element={<CompanyProfile />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

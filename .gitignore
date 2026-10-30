@@ -1,0 +1,3 @@
+# Dependencias y variables de entorno (cada carpeta tiene además su propio .gitignore)
+node_modules/
+.env
